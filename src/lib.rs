@@ -47,7 +47,7 @@ pub async fn fetch_and_parse(url: &str) -> anyhow::Result<()> {
 
     for result in reader.deserialize() {
         let journey: Journey = result?;
-        println!("{:?}", journey);
+        println!("{journey:?}");
     }
 
     Ok(())
