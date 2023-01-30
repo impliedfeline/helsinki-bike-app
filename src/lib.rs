@@ -33,9 +33,9 @@ where
     D: Deserializer<'de>,
 {
     let s = String::deserialize(de)?;
-    NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
+    s.parse::<NaiveDateTime>()
         .or_else(|_| {
-            NaiveDate::parse_from_str(&s, "%Y-%m-%d")
+            s.parse::<NaiveDate>()
                 .map(|date| date.and_time(NaiveTime::default()))
         })
         .map_err(serde::de::Error::custom)
