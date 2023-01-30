@@ -23,6 +23,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          profile: minimal
 
       - name: Run cargo build
         uses: actions-rs/cargo@v1
