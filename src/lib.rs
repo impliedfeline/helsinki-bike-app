@@ -1,5 +1,8 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use reqwest::IntoUrl;
 use serde::{Deserialize, Deserializer};
+
+pub mod config;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Journey {
@@ -41,7 +44,7 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-pub async fn fetch_and_parse(url: &str) -> anyhow::Result<()> {
+pub async fn fetch_and_parse<T: IntoUrl>(url: T) -> anyhow::Result<()> {
     let body = reqwest::get(url).await?.text().await?;
     let mut reader = csv::Reader::from_reader(body.as_bytes());
 
