@@ -1,7 +1,7 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct Journey {
     #[serde(rename = "Departure", deserialize_with = "parse_naive_date_time")]
     pub departure_time: NaiveDateTime,
