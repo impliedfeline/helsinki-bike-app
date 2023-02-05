@@ -1,5 +1,5 @@
 use chrono::NaiveDateTime;
-use helsinki_bike_app::Journey;
+use helsinki_bike_app::journey::Journey;
 
 #[test]
 fn parsing_well_formed_journey_data_works() -> Result<(), csv::Error> {

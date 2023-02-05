@@ -1,6 +1,6 @@
 use std::net::{SocketAddr, TcpListener};
 
-use helsinki_bike_app::run;
+use helsinki_bike_app::startup::run;
 
 async fn spawn_app() -> SocketAddr {
     let listener =

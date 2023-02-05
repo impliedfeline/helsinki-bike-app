@@ -1,7 +1,9 @@
 use std::net::TcpListener;
 
 use anyhow::Context;
-use helsinki_bike_app::{config::Settings, fetch_and_parse, run};
+use helsinki_bike_app::{
+    config::Settings, journey::fetch_and_parse, startup::run,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
