@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use url::Url;
@@ -5,6 +7,8 @@ use url::Url;
 #[derive(Debug, Deserialize)]
 pub struct Settings {
     pub journey_data_urls: Vec<Url>,
+    pub host: IpAddr,
+    pub port: u16,
 }
 
 impl Settings {
