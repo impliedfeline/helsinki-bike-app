@@ -1,3 +1,6 @@
+use std::net::TcpListener;
+
+use axum::{http::StatusCode, routing::get, Router};
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -79,6 +82,21 @@ pub async fn fetch_and_parse<T: IntoUrl>(url: T) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn run(listener: TcpListener) -> anyhow::Result<()> {
+    let app = Router::new().route("/api/health_check", get(health_check));
+
+    axum::Server::from_tcp(listener)
+        .unwrap()
+        .serve(app.into_make_service())
+        .await?;
+
+    Ok(())
+}
+
+pub async fn health_check() -> StatusCode {
+    StatusCode::OK
 }
 
 #[cfg(test)]
