@@ -77,7 +77,7 @@ async fn fetch_journey_data(url: &Url) -> reqwest::Result<String> {
 }
 
 async fn insert_into_db(body: String, pool: &PgPool) -> sqlx::Result<()> {
-    const LIMIT: usize = 8192;
+    const LIMIT: usize = 2 << 14;
     let mut reader = csv::Reader::from_reader(body.as_bytes());
 
     let journeys = reader
@@ -125,15 +125,21 @@ pub async fn data_worker(
     config: &Settings,
     pool: &PgPool,
 ) -> anyhow::Result<()> {
-    const LIMIT: usize = 8192;
-    for url in &config.app.journey_data_urls {
+    async fn go(url: &Url, pool: &PgPool) -> anyhow::Result<()> {
         let body = fetch_journey_data(url)
             .await
             .context("Failed to fetch journey data")?;
         insert_into_db(body, pool)
             .await
             .context("Failed to insert data to database")?;
+
+        Ok(())
     }
+
+    futures_util::future::try_join_all(
+        config.app.journey_data_urls.iter().map(|url| go(url, pool)),
+    )
+    .await?;
 
     Ok(())
 }
