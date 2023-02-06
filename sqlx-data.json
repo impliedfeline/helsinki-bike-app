@@ -1,5 +1,22 @@
 {
   "db": "PostgreSQL",
+  "87b3aae46f826d563411113559dd232da12f3c62626e09ff655145358993a83f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "TimestampArray",
+          "TimestampArray",
+          "TextArray",
+          "TextArray",
+          "Float4Array",
+          "Float4Array"
+        ]
+      }
+    },
+    "query": "\ninsert into journeys(departure_time, return_time, departure_station_id, return_station_id, distance_m, duration_sec)\nselect * from unnest($1::timestamp[], $2::timestamp[], $3::text[], $4::text[], $5::real[], $6::real[])\non conflict on constraint u_stats do nothing"
+  },
   "bfded3eb4f6fbbd0780d1799daf6c6f9db5f7d011bd6989a2bb32c06d46a41ed": {
     "describe": {
       "columns": [
