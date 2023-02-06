@@ -2,14 +2,14 @@ use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use lazy_static::lazy_static;
 use regex::Regex;
 use reqwest::IntoUrl;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use validator::{Validate, ValidationError};
 
 lazy_static! {
     static ref STATION_ID: Regex = Regex::new(r"^[0-9]{3}$").unwrap();
 }
 
-#[derive(Debug, Deserialize, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(
     function = "validate_departure_prior_to_return",
     skip_on_field_errors = false
