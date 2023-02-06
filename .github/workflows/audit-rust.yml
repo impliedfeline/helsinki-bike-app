@@ -19,8 +19,10 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
-          components: audit
+          toolchain: stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
 
       - name: Run cargo audit
         uses: actions-rs/cargo@v1
