@@ -1,9 +1,11 @@
+use anyhow::Context;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::PgPool;
+use url::Url;
 use validator::{Validate, ValidationError};
 
 use crate::config::Settings;
@@ -70,43 +72,43 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-pub async fn data_worker(
-    config: &Settings,
-    pool: &PgPool,
-) -> anyhow::Result<()> {
+async fn fetch_journey_data(url: &Url) -> reqwest::Result<String> {
+    reqwest::get(url.clone()).await?.text().await
+}
+
+async fn insert_into_db(body: String, pool: &PgPool) -> sqlx::Result<()> {
     const LIMIT: usize = 8192;
-    for url in &config.app.journey_data_urls {
-        let body = reqwest::get(url.clone()).await?.text().await?;
-        let mut reader = csv::Reader::from_reader(body.as_bytes());
+    let mut reader = csv::Reader::from_reader(body.as_bytes());
 
-        let journeys = reader
-            .deserialize()
-            .into_iter()
-            .filter_map(|result| result.ok())
-            .filter_map(|journey: Journey| match journey.validate() {
-                Ok(_) => Some(journey),
-                Err(_) => None,
-            })
-            .chunks(LIMIT);
+    let journeys = reader
+        .deserialize()
+        .into_iter()
+        .filter_map(|result| result.ok())
+        .filter_map(|journey: Journey| match journey.validate() {
+            Ok(_) => Some(journey),
+            Err(_) => None,
+        })
+        .chunks(LIMIT);
 
-        for chunk in journeys.into_iter() {
-            let chunk: Vec<Journey> = chunk.collect();
-            let departure_time: Vec<_> =
-                chunk.iter().map(|j| j.departure_time).collect();
-            let return_time: Vec<_> =
-                chunk.iter().map(|j| j.return_time).collect();
-            let departure_station_id: Vec<_> = chunk
-                .iter()
-                .map(|j| j.departure_station_id.clone())
-                .collect();
-            let return_station_id: Vec<_> =
-                chunk.iter().map(|j| j.return_station_id.clone()).collect();
-            let distance_m: Vec<_> =
-                chunk.iter().map(|j| j.distance_m).collect();
-            let duration_sec: Vec<_> =
-                chunk.iter().map(|j| j.duration_sec).collect();
+    for chunk in journeys.into_iter() {
+        let chunk: Vec<Journey> = chunk.collect();
+        let departure_time: Vec<_> =
+            chunk.iter().map(|j| j.departure_time).collect();
+        let return_time: Vec<_> = chunk.iter().map(|j| j.return_time).collect();
+        let departure_station_id: Vec<_> = chunk
+            .iter()
+            .map(|j| j.departure_station_id.clone())
+            .collect();
+        let return_station_id: Vec<_> =
+            chunk.iter().map(|j| j.return_station_id.clone()).collect();
+        let distance_m: Vec<_> = chunk.iter().map(|j| j.distance_m).collect();
+        let duration_sec: Vec<_> =
+            chunk.iter().map(|j| j.duration_sec).collect();
 
-            sqlx::query!("insert into journeys(departure_time, return_time, departure_station_id, return_station_id, distance_m, duration_sec) select * from unnest($1::timestamp[], $2::timestamp[], $3::text[], $4::text[], $5::real[], $6::real[]) on conflict on constraint u_stats do nothing",
+        sqlx::query!(r#"
+insert into journeys(departure_time, return_time, departure_station_id, return_station_id, distance_m, duration_sec)
+select * from unnest($1::timestamp[], $2::timestamp[], $3::text[], $4::text[], $5::real[], $6::real[])
+on conflict on constraint u_stats do nothing"#,
             &departure_time[..],
             &return_time[..],
             &departure_station_id[..],
@@ -114,7 +116,23 @@ pub async fn data_worker(
             &distance_m[..],
             &duration_sec[..],
             ).execute(pool).await?;
-        }
+    }
+
+    Ok(())
+}
+
+pub async fn data_worker(
+    config: &Settings,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    const LIMIT: usize = 8192;
+    for url in &config.app.journey_data_urls {
+        let body = fetch_journey_data(url)
+            .await
+            .context("Failed to fetch journey data")?;
+        insert_into_db(body, pool)
+            .await
+            .context("Failed to insert data to database")?;
     }
 
     Ok(())
