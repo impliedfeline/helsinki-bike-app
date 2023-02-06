@@ -1,0 +1,57 @@
+{
+  "db": "PostgreSQL",
+  "bfded3eb4f6fbbd0780d1799daf6c6f9db5f7d011bd6989a2bb32c06d46a41ed": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int8"
+        },
+        {
+          "name": "departure_time",
+          "ordinal": 1,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "return_time",
+          "ordinal": 2,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "departure_station_id",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "return_station_id",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "distance_m",
+          "ordinal": 5,
+          "type_info": "Float4"
+        },
+        {
+          "name": "duration_sec",
+          "ordinal": 6,
+          "type_info": "Float4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "select * from journeys limit 100"
+  }
+}
