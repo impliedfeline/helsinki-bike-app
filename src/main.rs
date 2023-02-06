@@ -2,8 +2,7 @@ use std::net::TcpListener;
 
 use anyhow::Context;
 use helsinki_bike_app::{
-    config::Settings, journey::fetch_and_parse, startup::run,
-    telemetry::init_subscriber,
+    config::Settings, journey, startup::run, telemetry::init_subscriber,
 };
 use secrecy::ExposeSecret;
 use sqlx::PgPool;
@@ -22,11 +21,9 @@ async fn main() -> anyhow::Result<()> {
     let listener =
         TcpListener::bind(&address).context("Failed to bind port")?;
     tracing::debug!(address);
-    run(listener, pool).await?;
 
-    for url in config.app.journey_data_urls {
-        fetch_and_parse(url).await?;
-    }
+    journey::data_worker(&config, &pool).await?;
+    run(listener, pool).await?;
 
     Ok(())
 }

@@ -610,6 +610,7 @@ dependencies = [
  "config",
  "csv",
  "futures-util",
+ "itertools",
  "lazy_static",
  "regex",
  "reqwest",

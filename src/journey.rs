@@ -1,9 +1,12 @@
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use regex::Regex;
-use reqwest::IntoUrl;
 use serde::{Deserialize, Deserializer, Serialize};
+use sqlx::PgPool;
 use validator::{Validate, ValidationError};
+
+use crate::config::Settings;
 
 lazy_static! {
     static ref STATION_ID: Regex = Regex::new(r"^[0-9]{3}$").unwrap();
@@ -30,10 +33,10 @@ pub struct Journey {
         rename = "Covered distance (m)",
         deserialize_with = "default_if_empty"
     )]
-    pub distance_m: f64,
+    pub distance_m: f32,
     #[validate(range(min = 10.0))]
     #[serde(rename = "Duration (sec.)", deserialize_with = "default_if_empty")]
-    pub duration_sec: f64,
+    pub duration_sec: f32,
 }
 
 fn validate_departure_prior_to_return(
@@ -67,13 +70,51 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-pub async fn fetch_and_parse<T: IntoUrl>(url: T) -> anyhow::Result<()> {
-    let body = reqwest::get(url).await?.text().await?;
-    let mut reader = csv::Reader::from_reader(body.as_bytes());
+pub async fn data_worker(
+    config: &Settings,
+    pool: &PgPool,
+) -> anyhow::Result<()> {
+    const LIMIT: usize = 8192;
+    for url in &config.app.journey_data_urls {
+        let body = reqwest::get(url.clone()).await?.text().await?;
+        let mut reader = csv::Reader::from_reader(body.as_bytes());
 
-    for result in reader.deserialize() {
-        let journey: Journey = result?;
-        println!("{journey:?}");
+        let journeys = reader
+            .deserialize()
+            .into_iter()
+            .filter_map(|result| result.ok())
+            .filter_map(|journey: Journey| match journey.validate() {
+                Ok(_) => Some(journey),
+                Err(_) => None,
+            })
+            .chunks(LIMIT);
+
+        for chunk in journeys.into_iter() {
+            let chunk: Vec<Journey> = chunk.collect();
+            let departure_time: Vec<_> =
+                chunk.iter().map(|j| j.departure_time).collect();
+            let return_time: Vec<_> =
+                chunk.iter().map(|j| j.return_time).collect();
+            let departure_station_id: Vec<_> = chunk
+                .iter()
+                .map(|j| j.departure_station_id.clone())
+                .collect();
+            let return_station_id: Vec<_> =
+                chunk.iter().map(|j| j.return_station_id.clone()).collect();
+            let distance_m: Vec<_> =
+                chunk.iter().map(|j| j.distance_m).collect();
+            let duration_sec: Vec<_> =
+                chunk.iter().map(|j| j.duration_sec).collect();
+
+            sqlx::query!("insert into journeys(departure_time, return_time, departure_station_id, return_station_id, distance_m, duration_sec) select * from unnest($1::timestamp[], $2::timestamp[], $3::text[], $4::text[], $5::real[], $6::real[]) on conflict on constraint u_stats do nothing",
+            &departure_time[..],
+            &return_time[..],
+            &departure_station_id[..],
+            &return_station_id[..],
+            &distance_m[..],
+            &duration_sec[..],
+            ).execute(pool).await?;
+        }
     }
 
     Ok(())
