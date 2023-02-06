@@ -6,6 +6,7 @@ use helsinki_bike_app::{
 };
 use secrecy::ExposeSecret;
 use sqlx::PgPool;
+use tokio::try_join;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,8 +23,10 @@ async fn main() -> anyhow::Result<()> {
         TcpListener::bind(&address).context("Failed to bind port")?;
     tracing::debug!(address);
 
-    journey::data_worker(&config, &pool).await?;
-    run(listener, pool).await?;
+    try_join!(
+        journey::data_worker(&config, &pool),
+        run(listener, pool.clone())
+    )?;
 
     Ok(())
 }
